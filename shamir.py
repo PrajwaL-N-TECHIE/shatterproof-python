@@ -13,6 +13,9 @@ def _eval_at(poly, x, prime):
 def make_random_shares(secret, minimum, shares, prime=PRIME):
     if minimum > shares:
         raise ValueError("Pool secret would be irrecoverable.")
+    if minimum < 2:
+        raise ValueError("Threshold must be at least 2")
+    
     poly = [secret] + [random.randrange(prime) for i in range(minimum - 1)]
     points = []
     for i in range(1, shares + 1):
@@ -56,6 +59,13 @@ def recover_secret(shares, prime=PRIME):
 # --- ROBUST TEXT WRAPPERS ---
 
 def encrypt(text, total_shares=5, threshold=3):
+    if not text:
+        raise ValueError("Text cannot be empty")
+    if threshold > total_shares:
+        raise ValueError("Threshold cannot exceed total shares")
+    if threshold < 2:
+        raise ValueError("Threshold must be at least 2")
+    
     # Convert string to hex bytes
     hex_data = binascii.hexlify(text.encode('utf-8'))
     # Convert hex bytes to integer
@@ -68,17 +78,20 @@ def encrypt(text, total_shares=5, threshold=3):
     return [f"{x}-{y}" for x, y in shares]
 
 def decrypt(share_strings):
+    if len(share_strings) < 2:
+        raise ValueError("Need at least 2 shares to reconstruct")
+        
     shares = []
     for s in share_strings:
-        if "-" in s:
+        if s and "-" in s:
             try:
                 x, y = s.split("-")
                 shares.append((int(x), int(y)))
             except ValueError:
                 continue # Skip bad shards
             
-    if not shares:
-        raise ValueError("No valid shards found")
+    if len(shares) < 2:
+        raise ValueError(f"Need at least 2 valid shares, got {len(shares)}")
 
     # Recover the big integer
     secret_int = recover_secret(shares)
@@ -96,3 +109,16 @@ def decrypt(share_strings):
         return binascii.unhexlify(hex_data).decode('utf-8')
     except:
         return "[DECRYPTION ERROR: Bad Data]"
+
+# Additional utility function
+def validate_shard_format(shard_str):
+    """Check if a shard string is properly formatted"""
+    if not shard_str or '-' not in shard_str:
+        return False
+    try:
+        x, y = shard_str.split('-')
+        int(x)
+        int(y)
+        return True
+    except ValueError:
+        return False
