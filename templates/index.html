@@ -11,6 +11,7 @@
         /* Neon Glow Effects */
         .glow-red { box-shadow: 0 0 15px rgba(220, 38, 38, 0.4); border-color: #dc2626; color: #fca5a5; }
         .glow-green { box-shadow: 0 0 15px rgba(22, 163, 74, 0.4); border-color: #16a34a; color: #86efac; }
+        .glow-blue { box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); border-color: #3b82f6; color: #93c5fd; }
         
         /* Tab Animation */
         .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
@@ -26,13 +27,19 @@
 
         /* Active Tab Styling */
         .tab-btn.active { background-color: #111; border-bottom: 2px solid white; color: white; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
 </head>
 <body class="h-screen flex flex-col items-center justify-center p-4 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
 
     <div class="text-center mb-8">
         <h1 class="text-5xl font-bold mb-2 tracking-[0.2em] text-white">SHATTERPROOF</h1>
-        <div class="text-xs text-gray-500">CRYPTOGRAPHIC DISSIPATION PROTOCOL v2.0 (PYTHON KERNEL)</div>
+        <div class="text-xs text-gray-500">CRYPTOGRAPHIC DISSIPATION PROTOCOL v2.1 (PYTHON KERNEL)</div>
     </div>
 
     <div class="w-full max-w-3xl bg-black border border-gray-800 shadow-2xl rounded-lg overflow-hidden">
@@ -49,26 +56,60 @@
         <div id="view-encrypt" class="tab-content active p-8">
             <div class="border-l-4 border-red-600 pl-4 mb-6">
                 <h2 class="text-xl text-red-500 font-bold">SECURE DISSIPATION</h2>
-                <p class="text-xs text-gray-500">Input sensitive data. It will be split into 5 mathematical shards.</p>
+                <p class="text-xs text-gray-500">Input sensitive data. It will be split into mathematical shards.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1">TOTAL SHARDS</label>
+                    <select id="totalShares" class="w-full bg-gray-900 border border-gray-700 text-white p-2 text-sm rounded">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="7">7</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500 block mb-1">THRESHOLD</label>
+                    <select id="threshold" class="w-full bg-gray-900 border border-gray-700 text-white p-2 text-sm rounded">
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="text-right text-xs text-gray-500 mb-2">
+                <span id="charCount">0 characters</span>
             </div>
 
             <textarea id="secretInput" class="w-full h-32 bg-gray-900 border border-gray-700 text-red-100 p-4 text-sm focus:outline-none focus:border-red-500 rounded mb-4" placeholder="Enter top secret evidence here..."></textarea>
             
-            <button onclick="shatter()" class="w-full border border-red-600 text-red-500 hover:bg-red-900/20 font-bold py-4 rounded transition tracking-widest">
+            <button onclick="shatter()" class="w-full border border-red-600 text-red-500 hover:bg-red-900/20 font-bold py-4 rounded transition tracking-widest glow-red">
                 💥 EXECUTE SHATTER ALGORITHM
             </button>
 
             <div id="shardsOutput" class="mt-6 space-y-2 max-h-40 overflow-auto pr-2"></div>
+
+            <div class="mt-4 flex gap-2">
+                <button onclick="exportShards()" id="exportBtn" class="flex-1 border border-blue-600 text-blue-500 hover:bg-blue-900/20 py-2 text-sm rounded opacity-50 cursor-not-allowed transition">
+                    📄 EXPORT SHARDS
+                </button>
+                <button onclick="clearAll()" class="flex-1 border border-gray-600 text-gray-500 hover:bg-gray-800 py-2 text-sm rounded transition">
+                    🗑️ CLEAR ALL
+                </button>
+            </div>
         </div>
 
         <div id="view-decrypt" class="tab-content p-8">
             <div class="border-l-4 border-green-600 pl-4 mb-6">
                 <h2 class="text-xl text-green-500 font-bold">DATA RECONSTRUCTION</h2>
-                <p class="text-xs text-gray-500">Enter any 3 unique shards to recover the original file.</p>
+                <p class="text-xs text-gray-500">Enter shards to recover the original file. You can paste multiple shards at once.</p>
             </div>
 
-            <div class="flex gap-2 mb-6">
-                <input type="text" id="shardInput" class="bg-gray-900 border border-gray-700 text-green-100 p-3 w-full text-xs rounded focus:outline-none focus:border-green-500" placeholder="Paste Shard string here...">
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="shardInput" class="bg-gray-900 border border-gray-700 text-green-100 p-3 w-full text-xs rounded focus:outline-none focus:border-green-500" placeholder="Paste Shard string here... (or multiple shards separated by new lines)">
                 <button onclick="addShard()" class="bg-gray-800 hover:bg-gray-700 text-white px-6 rounded font-bold border border-gray-600">+</button>
             </div>
 
@@ -77,8 +118,10 @@
                 <span id="countLabel">0/3 REQUIRED</span>
             </div>
             <div id="shard-pool" class="flex gap-2 mb-6 h-2">
-                <div class="w-full bg-gray-900 rounded h-2"></div>
+                <!-- Progress bars will be generated here -->
             </div>
+
+            <div id="shardList" class="mb-4 max-h-32 overflow-auto space-y-1"></div>
 
             <div id="finalResult" class="p-6 border border-gray-700 bg-black text-gray-600 flex flex-col items-center justify-center text-center min-h-[120px] rounded">
                 <div class="text-2xl tracking-widest opacity-50">LOCKED</div>
@@ -87,6 +130,15 @@
             <button onclick="reconstruct()" id="unlockBtn" class="mt-6 w-full bg-gray-800 text-gray-500 font-bold py-4 rounded cursor-not-allowed opacity-50 transition">
                 WAITING FOR DATA...
             </button>
+
+            <div class="mt-4 flex gap-2">
+                <button onclick="validateShards()" id="validateBtn" class="flex-1 border border-blue-600 text-blue-500 hover:bg-blue-900/20 py-2 text-sm rounded transition">
+                    🔍 VALIDATE SHARDS
+                </button>
+                <button onclick="clearDecrypt()" class="flex-1 border border-gray-600 text-gray-500 hover:bg-gray-800 py-2 text-sm rounded transition">
+                    🗑️ CLEAR ALL
+                </button>
+            </div>
         </div>
 
     </div>
@@ -94,63 +146,150 @@
     <script>
         // --- TABS LOGIC ---
         function switchTab(tab) {
-            // Hide all
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             
-            // Show target
             document.getElementById(`view-${tab}`).classList.add('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
         }
 
-        // --- PYTHON API LOGIC ---
+        // --- GLOBAL STATE ---
         let collectedShards = [];
+        let currentShards = [];
+        let securityTimer;
 
-        async function shatter() {
+        // --- CHARACTER COUNTER ---
+        function updateCharCount() {
             const text = document.getElementById('secretInput').value;
+            const count = text.length;
+            document.getElementById('charCount').innerText = `${count} characters`;
+            startSecurityTimer();
+        }
+        document.getElementById('secretInput').addEventListener('input', updateCharCount);
+
+        // --- SECURITY TIMER ---
+        function startSecurityTimer() {
+            clearTimeout(securityTimer);
+            securityTimer = setTimeout(() => {
+                if(confirm("Security timeout: Clear all sensitive data?")) {
+                    clearAll();
+                }
+            }, 300000); // 5 minutes
+        }
+
+        // --- ENCRYPTION LOGIC ---
+        async function shatter() {
+            const text = document.getElementById('secretInput').value.trim();
             if(!text) return alert("Please enter text to encrypt.");
+
+            const totalShares = parseInt(document.getElementById('totalShares').value);
+            const threshold = parseInt(document.getElementById('threshold').value);
+
+            if(threshold > totalShares) {
+                return alert("Threshold cannot exceed total shares.");
+            }
 
             const btn = event.target;
             btn.innerText = "PROCESSING...";
+            btn.disabled = true;
             
-            // Call Python
-            const res = await fetch('/shatter', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({text: text})
-            });
-            const data = await res.json();
-            
-            btn.innerText = "💥 EXECUTE SHATTER ALGORITHM";
+            try {
+                const res = await fetch('/shatter', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        text: text,
+                        total_shares: totalShares,
+                        threshold: threshold
+                    })
+                });
+                const data = await res.json();
+                
+                if(data.status === 'success') {
+                    currentShards = data.shards;
+                    renderShards(currentShards);
+                    document.getElementById('exportBtn').classList.remove('opacity-50', 'cursor-not-allowed');
+                    document.getElementById('exportBtn').classList.add('glow-blue');
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (error) {
+                alert("Network error: " + error.message);
+            } finally {
+                btn.innerText = "💥 EXECUTE SHATTER ALGORITHM";
+                btn.disabled = false;
+            }
+        }
 
-            // Render Shards
+        function renderShards(shards) {
             const container = document.getElementById('shardsOutput');
             container.innerHTML = '<div class="text-xs text-red-400 mb-2 text-center">CLICK TO COPY SHARDS:</div>';
             
-            data.shards.forEach((shard, i) => {
+            shards.forEach((shard, i) => {
                 const div = document.createElement('div');
                 div.className = 'shard-box text-red-300 hover:bg-red-900/30';
-                div.innerText = shard;
+                div.innerHTML = `<span class="text-gray-500 text-xs">#${i+1}:</span> ${shard}`;
                 div.onclick = () => {
                     navigator.clipboard.writeText(shard);
-                    // Visual feedback
                     div.style.borderColor = '#fff';
-                    setTimeout(() => div.style.borderColor = '#333', 200);
+                    div.style.background = '#1f2937';
+                    setTimeout(() => {
+                        div.style.borderColor = '#333';
+                        div.style.background = '';
+                    }, 500);
                 };
                 container.appendChild(div);
             });
         }
 
+        // --- SHARD VALIDATION ---
+        function isValidShard(shard) {
+            return shard.includes('-') && shard.split('-').length === 2;
+        }
+
+        // --- DECRYPTION LOGIC ---
         function addShard() {
             const input = document.getElementById('shardInput');
             const val = input.value.trim();
+            
             if(!val) return;
             
-            if(collectedShards.includes(val)) return alert("Shard already added!");
-
+            // Handle multiple shards pasted at once
+            if(val.includes('\n')) {
+                const shards = val.split('\n').map(s => s.trim()).filter(s => s);
+                let added = 0;
+                shards.forEach(shard => {
+                    if(isValidShard(shard) && !collectedShards.includes(shard) && collectedShards.length < 10) {
+                        collectedShards.push(shard);
+                        added++;
+                    }
+                });
+                if(added > 0) {
+                    input.value = '';
+                    updateReceiverUI();
+                    showNotification(`Added ${added} shards`, 'green');
+                }
+                return;
+            }
+            
+            if(!isValidShard(val)) {
+                input.classList.add('border-red-500');
+                setTimeout(() => input.classList.remove('border-red-500'), 2000);
+                showNotification('Invalid shard format. Expected: number-number', 'red');
+                return;
+            }
+            
+            if(collectedShards.includes(val)) {
+                input.classList.add('border-yellow-500');
+                setTimeout(() => input.classList.remove('border-yellow-500'), 1000);
+                showNotification('Shard already added!', 'yellow');
+                return;
+            }
+            
             collectedShards.push(val);
             input.value = '';
             updateReceiverUI();
+            showNotification('Shard added successfully', 'green');
         }
 
         function updateReceiverUI() {
@@ -160,11 +299,20 @@
             // Update Progress Bar
             const pool = document.getElementById('shard-pool');
             pool.innerHTML = '';
-            for(let i=0; i<3; i++) {
+            for(let i=0; i<5; i++) {
                 const bar = document.createElement('div');
                 bar.className = `w-full h-2 rounded transition-all duration-500 ${i < count ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gray-800'}`;
                 pool.appendChild(bar);
             }
+
+            // Update Shard List
+            const shardList = document.getElementById('shardList');
+            shardList.innerHTML = collectedShards.map((shard, index) => `
+                <div class="flex items-center justify-between bg-gray-900 p-2 rounded text-xs">
+                    <span class="text-green-400">#${index+1}: ${shard}</span>
+                    <button onclick="removeShard(${index})" class="text-red-500 hover:text-red-300">×</button>
+                </div>
+            `).join('');
 
             // Update Button State
             const btn = document.getElementById('unlockBtn');
@@ -172,7 +320,16 @@
                 btn.classList.remove('cursor-not-allowed', 'opacity-50', 'bg-gray-800', 'text-gray-500');
                 btn.classList.add('bg-green-700', 'text-white', 'hover:bg-green-600', 'glow-green');
                 btn.innerText = "🔓 DECRYPT DATA";
+            } else {
+                btn.classList.add('cursor-not-allowed', 'opacity-50', 'bg-gray-800', 'text-gray-500');
+                btn.classList.remove('bg-green-700', 'text-white', 'hover:bg-green-600', 'glow-green');
+                btn.innerText = "WAITING FOR DATA...";
             }
+        }
+
+        function removeShard(index) {
+            collectedShards.splice(index, 1);
+            updateReceiverUI();
         }
 
         async function reconstruct() {
@@ -180,27 +337,123 @@
 
             const btn = document.getElementById('unlockBtn');
             btn.innerText = "DECRYPTING...";
+            btn.disabled = true;
 
-            const res = await fetch('/reconstruct', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({shards: collectedShards})
-            });
-            const data = await res.json();
+            try {
+                const res = await fetch('/reconstruct', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({shards: collectedShards})
+                });
+                const data = await res.json();
 
-            const box = document.getElementById('finalResult');
-            
-            if(data.status === 'success') {
-                box.innerHTML = `<div class="text-green-400 text-xl font-bold break-all">${data.secret}</div>`;
-                box.className = "p-6 border border-green-500 bg-green-900/10 text-center min-h-[120px] rounded glow-green flex items-center justify-center";
-                btn.innerText = "ACCESS GRANTED";
-            } else {
-                box.innerText = "DECRYPTION FAILED: INVALID SHARDS";
-                box.className = "p-6 border border-red-500 bg-red-900/10 text-red-500 text-center min-h-[120px] rounded flex items-center justify-center font-bold";
-                btn.innerText = "ACCESS DENIED";
-                btn.classList.replace('bg-green-700', 'bg-red-700');
+                const box = document.getElementById('finalResult');
+                
+                if(data.status === 'success') {
+                    box.innerHTML = `<div class="text-green-400 text-xl font-bold break-all">${data.secret}</div>`;
+                    box.className = "p-6 border border-green-500 bg-green-900/10 text-center min-h-[120px] rounded glow-green flex items-center justify-center";
+                    btn.innerText = "ACCESS GRANTED";
+                } else {
+                    box.innerHTML = `<div class="text-red-400 font-bold">DECRYPTION FAILED</div><div class="text-xs text-red-300 mt-2">${data.message}</div>`;
+                    box.className = "p-6 border border-red-500 bg-red-900/10 text-center min-h-[120px] rounded flex flex-col items-center justify-center";
+                    btn.innerText = "ACCESS DENIED";
+                    btn.classList.remove('bg-green-700', 'glow-green');
+                    btn.classList.add('bg-red-700', 'glow-red');
+                }
+            } catch (error) {
+                alert("Network error: " + error.message);
+            } finally {
+                btn.disabled = false;
             }
         }
+
+        async function validateShards() {
+            if(collectedShards.length === 0) return;
+
+            const btn = document.getElementById('validateBtn');
+            btn.innerText = "VALIDATING...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/validate_shards', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({shards: collectedShards})
+                });
+                const data = await res.json();
+
+                if(data.valid) {
+                    showNotification(`✅ ${data.message}`, 'green');
+                } else {
+                    showNotification(`❌ ${data.message}`, 'red');
+                }
+            } catch (error) {
+                showNotification('Network error during validation', 'red');
+            } finally {
+                btn.innerText = "🔍 VALIDATE SHARDS";
+                btn.disabled = false;
+            }
+        }
+
+        // --- UTILITY FUNCTIONS ---
+        function exportShards() {
+            if(currentShards.length === 0) return;
+            
+            const shardsText = currentShards.join('\n');
+            const blob = new Blob([shardsText], {type: 'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'shatterproof-shards.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('Shards exported successfully', 'blue');
+        }
+
+        function clearAll() {
+            document.getElementById('secretInput').value = '';
+            document.getElementById('shardsOutput').innerHTML = '';
+            document.getElementById('charCount').innerText = '0 characters';
+            currentShards = [];
+            document.getElementById('exportBtn').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('exportBtn').classList.remove('glow-blue');
+            showNotification('All data cleared', 'gray');
+        }
+
+        function clearDecrypt() {
+            collectedShards = [];
+            document.getElementById('shardInput').value = '';
+            document.getElementById('finalResult').innerHTML = '<div class="text-2xl tracking-widest opacity-50">LOCKED</div>';
+            document.getElementById('finalResult').className = "p-6 border border-gray-700 bg-black text-gray-600 flex flex-col items-center justify-center text-center min-h-[120px] rounded";
+            updateReceiverUI();
+            showNotification('Decryption data cleared', 'gray');
+        }
+
+        function showNotification(message, color) {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded border text-white z-50 transition-transform transform translate-x-full ${color === 'green' ? 'bg-green-900/90 border-green-500' : color === 'red' ? 'bg-red-900/90 border-red-500' : color === 'blue' ? 'bg-blue-900/90 border-blue-500' : 'bg-gray-900/90 border-gray-500'}`;
+            notification.innerText = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => notification.classList.remove('translate-x-full'), 100);
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Handle paste events for multiple shards
+        document.getElementById('shardInput').addEventListener('paste', function(e) {
+            setTimeout(() => {
+                if(this.value.includes('\n')) {
+                    addShard();
+                }
+            }, 100);
+        });
+
+        // Initialize
+        updateCharCount();
+        updateReceiverUI();
     </script>
 </body>
 </html>
