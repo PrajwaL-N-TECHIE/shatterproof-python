@@ -4,7 +4,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Rate limiting storage (in production, use Redis)
+# Simple in-memory rate limiting (resets on server restart)
 request_times = {}
 
 @app.route('/')
@@ -13,17 +13,20 @@ def home():
 
 @app.route('/shatter', methods=['POST'])
 def shatter():
-    # Basic rate limiting
+    # Basic Rate Limiting Logic
     client_ip = request.remote_addr
     now = datetime.now().timestamp()
     
     if client_ip in request_times:
-        if now - request_times[client_ip] < 1:  # 1 second between requests
-            return jsonify({"status": "error", "message": "Rate limit exceeded"})
+        if now - request_times[client_ip] < 0.5:  # Limit: 2 requests per second
+            return jsonify({"status": "error", "message": "Slow down! Rate limit exceeded."})
     
     request_times[client_ip] = now
     
     data = request.json
+    if not data:
+        return jsonify({"status": "error", "message": "Invalid JSON data"})
+
     text = data.get('text', '').strip()
     
     if not text:
@@ -33,8 +36,9 @@ def shatter():
         return jsonify({"status": "error", "message": "Text too long (max 100KB)"})
     
     try:
-        total_shares = min(int(data.get('total_shares', 5)), 10)  # Max 10 shares
-        threshold = min(int(data.get('threshold', 3)), total_shares)
+        # Clamp values to safe limits
+        total_shares = max(2, min(int(data.get('total_shares', 5)), 20))  # Max 20 shares
+        threshold = max(2, min(int(data.get('threshold', 3)), total_shares))
         
         # Create shards
         shards = shamir.encrypt(text, total_shares=total_shares, threshold=threshold)
@@ -50,9 +54,12 @@ def shatter():
 @app.route('/reconstruct', methods=['POST'])
 def reconstruct():
     data = request.json
+    if not data:
+        return jsonify({"status": "error", "message": "Invalid JSON data"})
+
     shards = data.get('shards', [])
     
-    # Filter out empty/invalid shards
+    # Filter out empty/invalid shards before passing to logic
     valid_shards = [s for s in shards if s and shamir.validate_shard_format(s)]
     
     if len(valid_shards) < 2:
@@ -64,33 +71,33 @@ def reconstruct():
     try:
         secret = shamir.decrypt(valid_shards)
         return jsonify({"status": "success", "secret": secret})
+    except ValueError as ve:
+        return jsonify({"status": "error", "message": str(ve)})
     except Exception as e:
         return jsonify({"status": "error", "message": "Decryption failed. Shards mismatch."})
 
 @app.route('/validate_shards', methods=['POST'])
 def validate_shards():
-    """Check if provided shards can reconstruct a secret"""
+    """Check if provided shards are valid format"""
     data = request.json
     shards = data.get('shards', [])
     
-    valid_shards = [s for s in shards if s and shamir.validate_shard_format(s)]
+    valid_count = sum(1 for s in shards if s and shamir.validate_shard_format(s))
     
-    try:
-        secret = shamir.decrypt(valid_shards)
+    if valid_count > 0:
         return jsonify({
             "status": "success", 
             "valid": True,
-            "shard_count": len(valid_shards),
-            "message": f"Valid configuration: {len(valid_shards)} shards"
+            "shard_count": valid_count,
+            "message": f"Found {valid_count} valid shard formats"
         })
-    except:
+    else:
         return jsonify({
             "status": "success",
             "valid": False,
-            "shard_count": len(valid_shards),
-            "message": f"Insufficient shards: {len(valid_shards)} provided"
+            "shard_count": 0,
+            "message": "No valid shards found"
         })
 
 if __name__ == '__main__':
-    print("🔥 ShatterProof System Online: http://127.0.0.1:5000")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=True)
