@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShatterProof | Python Crypto Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #050505; color: #ccc; font-family: 'Courier New', monospace; }
+        
+        /* Neon Glow Effects */
+        .glow-red { box-shadow: 0 0 15px rgba(220, 38, 38, 0.4); border-color: #dc2626; color: #fca5a5; }
+        .glow-green { box-shadow: 0 0 15px rgba(22, 163, 74, 0.4); border-color: #16a34a; color: #86efac; }
+        
+        /* Tab Animation */
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .shard-box { 
+            font-size: 11px; padding: 10px; margin-bottom: 8px; cursor: pointer; 
+            border: 1px dashed #333; transition: 0.2s; word-break: break-all;
+        }
+        .shard-box:hover { background: #111; border-color: #fff; color: #fff; }
+
+        /* Active Tab Styling */
+        .tab-btn.active { background-color: #111; border-bottom: 2px solid white; color: white; }
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-center p-4 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
+
+    <div class="text-center mb-8">
+        <h1 class="text-5xl font-bold mb-2 tracking-[0.2em] text-white">SHATTERPROOF</h1>
+        <div class="text-xs text-gray-500">CRYPTOGRAPHIC DISSIPATION PROTOCOL v2.0 (PYTHON KERNEL)</div>
+    </div>
+
+    <div class="w-full max-w-3xl bg-black border border-gray-800 shadow-2xl rounded-lg overflow-hidden">
+        
+        <div class="flex border-b border-gray-800">
+            <button onclick="switchTab('encrypt')" id="tab-encrypt" class="tab-btn active w-1/2 py-4 text-center font-bold text-gray-500 hover:text-white transition">
+                🔒 1. ENCRYPT & SHATTER
+            </button>
+            <button onclick="switchTab('decrypt')" id="tab-decrypt" class="tab-btn w-1/2 py-4 text-center font-bold text-gray-500 hover:text-white transition">
+                🔓 2. RECONSTRUCT & UNLOCK
+            </button>
+        </div>
+
+        <div id="view-encrypt" class="tab-content active p-8">
+            <div class="border-l-4 border-red-600 pl-4 mb-6">
+                <h2 class="text-xl text-red-500 font-bold">SECURE DISSIPATION</h2>
+                <p class="text-xs text-gray-500">Input sensitive data. It will be split into 5 mathematical shards.</p>
+            </div>
+
+            <textarea id="secretInput" class="w-full h-32 bg-gray-900 border border-gray-700 text-red-100 p-4 text-sm focus:outline-none focus:border-red-500 rounded mb-4" placeholder="Enter top secret evidence here..."></textarea>
+            
+            <button onclick="shatter()" class="w-full border border-red-600 text-red-500 hover:bg-red-900/20 font-bold py-4 rounded transition tracking-widest">
+                💥 EXECUTE SHATTER ALGORITHM
+            </button>
+
+            <div id="shardsOutput" class="mt-6 space-y-2 max-h-40 overflow-auto pr-2"></div>
+        </div>
+
+        <div id="view-decrypt" class="tab-content p-8">
+            <div class="border-l-4 border-green-600 pl-4 mb-6">
+                <h2 class="text-xl text-green-500 font-bold">DATA RECONSTRUCTION</h2>
+                <p class="text-xs text-gray-500">Enter any 3 unique shards to recover the original file.</p>
+            </div>
+
+            <div class="flex gap-2 mb-6">
+                <input type="text" id="shardInput" class="bg-gray-900 border border-gray-700 text-green-100 p-3 w-full text-xs rounded focus:outline-none focus:border-green-500" placeholder="Paste Shard string here...">
+                <button onclick="addShard()" class="bg-gray-800 hover:bg-gray-700 text-white px-6 rounded font-bold border border-gray-600">+</button>
+            </div>
+
+            <div class="mb-2 flex justify-between text-xs text-gray-500">
+                <span>SHARD BUFFER:</span>
+                <span id="countLabel">0/3 REQUIRED</span>
+            </div>
+            <div id="shard-pool" class="flex gap-2 mb-6 h-2">
+                <div class="w-full bg-gray-900 rounded h-2"></div>
+            </div>
+
+            <div id="finalResult" class="p-6 border border-gray-700 bg-black text-gray-600 flex flex-col items-center justify-center text-center min-h-[120px] rounded">
+                <div class="text-2xl tracking-widest opacity-50">LOCKED</div>
+            </div>
+            
+            <button onclick="reconstruct()" id="unlockBtn" class="mt-6 w-full bg-gray-800 text-gray-500 font-bold py-4 rounded cursor-not-allowed opacity-50 transition">
+                WAITING FOR DATA...
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- TABS LOGIC ---
+        function switchTab(tab) {
+            // Hide all
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            // Show target
+            document.getElementById(`view-${tab}`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        // --- PYTHON API LOGIC ---
+        let collectedShards = [];
+
+        async function shatter() {
+            const text = document.getElementById('secretInput').value;
+            if(!text) return alert("Please enter text to encrypt.");
+
+            const btn = event.target;
+            btn.innerText = "PROCESSING...";
+            
+            // Call Python
+            const res = await fetch('/shatter', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({text: text})
+            });
+            const data = await res.json();
+            
+            btn.innerText = "💥 EXECUTE SHATTER ALGORITHM";
+
+            // Render Shards
+            const container = document.getElementById('shardsOutput');
+            container.innerHTML = '<div class="text-xs text-red-400 mb-2 text-center">CLICK TO COPY SHARDS:</div>';
+            
+            data.shards.forEach((shard, i) => {
+                const div = document.createElement('div');
+                div.className = 'shard-box text-red-300 hover:bg-red-900/30';
+                div.innerText = shard;
+                div.onclick = () => {
+                    navigator.clipboard.writeText(shard);
+                    // Visual feedback
+                    div.style.borderColor = '#fff';
+                    setTimeout(() => div.style.borderColor = '#333', 200);
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function addShard() {
+            const input = document.getElementById('shardInput');
+            const val = input.value.trim();
+            if(!val) return;
+            
+            if(collectedShards.includes(val)) return alert("Shard already added!");
+
+            collectedShards.push(val);
+            input.value = '';
+            updateReceiverUI();
+        }
+
+        function updateReceiverUI() {
+            const count = collectedShards.length;
+            document.getElementById('countLabel').innerText = `${count}/3 REQUIRED`;
+            
+            // Update Progress Bar
+            const pool = document.getElementById('shard-pool');
+            pool.innerHTML = '';
+            for(let i=0; i<3; i++) {
+                const bar = document.createElement('div');
+                bar.className = `w-full h-2 rounded transition-all duration-500 ${i < count ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gray-800'}`;
+                pool.appendChild(bar);
+            }
+
+            // Update Button State
+            const btn = document.getElementById('unlockBtn');
+            if(count >= 3) {
+                btn.classList.remove('cursor-not-allowed', 'opacity-50', 'bg-gray-800', 'text-gray-500');
+                btn.classList.add('bg-green-700', 'text-white', 'hover:bg-green-600', 'glow-green');
+                btn.innerText = "🔓 DECRYPT DATA";
+            }
+        }
+
+        async function reconstruct() {
+            if(collectedShards.length < 3) return;
+
+            const btn = document.getElementById('unlockBtn');
+            btn.innerText = "DECRYPTING...";
+
+            const res = await fetch('/reconstruct', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({shards: collectedShards})
+            });
+            const data = await res.json();
+
+            const box = document.getElementById('finalResult');
+            
+            if(data.status === 'success') {
+                box.innerHTML = `<div class="text-green-400 text-xl font-bold break-all">${data.secret}</div>`;
+                box.className = "p-6 border border-green-500 bg-green-900/10 text-center min-h-[120px] rounded glow-green flex items-center justify-center";
+                btn.innerText = "ACCESS GRANTED";
+            } else {
+                box.innerText = "DECRYPTION FAILED: INVALID SHARDS";
+                box.className = "p-6 border border-red-500 bg-red-900/10 text-red-500 text-center min-h-[120px] rounded flex items-center justify-center font-bold";
+                btn.innerText = "ACCESS DENIED";
+                btn.classList.replace('bg-green-700', 'bg-red-700');
+            }
+        }
+    </script>
+</body>
+</html>
